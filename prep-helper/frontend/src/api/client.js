@@ -33,5 +33,15 @@ export const setupVault = (vault_path) => api.post('/vault/setup', { vault_path 
 export const getHealth = () => api.get('/health')
 export const suggestQuestionMetadata = (data) => api.post('/questions/suggest-metadata', data)
 
+// Notes
+export const getNotes = (params) => api.get('/notes', { params })
+export const getNotesByTopic = (topicName) => api.get(`/notes/topic/${encodeURIComponent(topicName)}`)
+export const patchNote = (id, data) => api.patch(`/notes/${id}`, data)
+
+// Annotations
+export const createAnnotation = (data) => api.post('/annotations', data)
+export const getAnnotations = (itemType, itemId) => api.get(`/annotations/${itemType}/${itemId}`)
+export const updateAnnotation = (id, data) => api.put(`/annotations/${id}`, data)
+export const deleteAnnotation = (id) => api.delete(`/annotations/${id}`)
 
 export default api
