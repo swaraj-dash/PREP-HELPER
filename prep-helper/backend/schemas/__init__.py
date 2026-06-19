@@ -1,6 +1,6 @@
 from backend.schemas.tag import TagOut, TagCreate, TagMerge, TagPatch
 from backend.schemas.document import DocumentUploadResponse, DocumentSummary, DocumentDetail
-from backend.schemas.srs import SRSStateOut, ReviewSubmit, SessionStart
+from backend.schemas.srs import SRSStateOut, ReviewSubmit, SessionStart, SessionStartResponse, SessionEndResponse
 from backend.schemas.question import QuestionOut, QuestionPatch
 from backend.schemas.note import NoteOut, NotePatch
 from backend.schemas.settings import SettingsOut, SettingsUpdate, TestKeyRequest, VaultSetupRequest
@@ -17,6 +17,8 @@ __all__ = [
     "SRSStateOut",
     "ReviewSubmit",
     "SessionStart",
+    "SessionStartResponse",
+    "SessionEndResponse",
     "QuestionOut",
     "QuestionPatch",
     "NoteOut",

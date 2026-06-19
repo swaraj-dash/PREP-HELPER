@@ -1,8 +1,11 @@
+from __future__ import annotations
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from pydantic import BaseModel
 from backend.schemas.tag import TagOut
-from backend.schemas.srs import SRSStateOut
+
+if TYPE_CHECKING:
+    from backend.schemas.srs import SRSStateOut
 
 class QuestionOut(BaseModel):
     id: str
@@ -22,6 +25,7 @@ class QuestionOut(BaseModel):
         "from_attributes": True
     }
 
+
 class QuestionPatch(BaseModel):
     question_text: Optional[str] = None
     answer_text: Optional[str] = None
@@ -33,4 +37,9 @@ class QuestionPatch(BaseModel):
 class QuestionSuggestRequest(BaseModel):
     question_text: str
     answer_text: str
+
+# Rebuild model to compile circular reference annotations
+from backend.schemas.srs import SRSStateOut
+QuestionOut.model_rebuild()
+
 
