@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel
 
 class TagOut(BaseModel):
@@ -19,3 +20,8 @@ class TagCreate(BaseModel):
 class TagMerge(BaseModel):
     source_tag_id: str
     target_tag_id: str
+
+class TagPatch(BaseModel):
+    name: Optional[str] = None
+    tag_type: Optional[str] = None
+

@@ -1,4 +1,4 @@
-from backend.schemas.tag import TagOut, TagCreate, TagMerge
+from backend.schemas.tag import TagOut, TagCreate, TagMerge, TagPatch
 from backend.schemas.document import DocumentUploadResponse, DocumentSummary, DocumentDetail
 from backend.schemas.srs import SRSStateOut, ReviewSubmit, SessionStart
 from backend.schemas.question import QuestionOut, QuestionPatch
@@ -10,6 +10,7 @@ __all__ = [
     "TagOut",
     "TagCreate",
     "TagMerge",
+    "TagPatch",
     "DocumentUploadResponse",
     "DocumentSummary",
     "DocumentDetail",
@@ -28,4 +29,5 @@ __all__ = [
     "UserAnnotationCreate",
     "UserAnnotationUpdate",
 ]
+
 

@@ -44,4 +44,12 @@ export const getAnnotations = (itemType, itemId) => api.get(`/annotations/${item
 export const updateAnnotation = (id, data) => api.put(`/annotations/${id}`, data)
 export const deleteAnnotation = (id) => api.delete(`/annotations/${id}`)
 
+// Tags
+export const getTags = (params) => api.get('/tags', { params })
+export const createTag = (data) => api.post('/tags', data)
+export const patchTag = (id, data) => api.patch(`/tags/${id}`, data)
+export const mergeTags = (data) => api.post('/tags/merge', data)
+export const deleteTag = (id, force = false) => api.delete(`/tags/${id}`, { params: { force } })
+
 export default api
+
