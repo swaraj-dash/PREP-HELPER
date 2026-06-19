@@ -54,6 +54,17 @@ async def init_db():
     """Initializes all tables in the SQLite database."""
     # Import models here to register them with Base.metadata and prevent circular imports
     from backend import models
+    from backend.utils.tag_vocab import seed_tags
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    # Open session to perform seeding
+    sessionmaker = get_sessionmaker()
+    async with sessionmaker() as session:
+        try:
+            await seed_tags(session)
+        except Exception as e:
+            # Let it fail gracefully or log it
+            print(f"Error seeding tags vocabulary: {e}")
+

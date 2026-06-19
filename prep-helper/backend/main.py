@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from backend.config import load_config, is_vault_configured
 from backend.database import init_db
-from backend.routers import settings
+from backend.routers import settings, documents, ws
 
 app = FastAPI(title="Prep Helper", version="1.0.0")
 
@@ -35,6 +35,8 @@ async def startup_event():
 
 # Register API Routers
 app.include_router(settings.router, prefix="/api")
+app.include_router(documents.router, prefix="/api")
+app.include_router(ws.router)
 
 @app.get("/api/health")
 def health():

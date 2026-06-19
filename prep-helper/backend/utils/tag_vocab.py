@@ -1,0 +1,198 @@
+from sqlalchemy import select
+from backend.models.tag import Tag
+
+TAG_VOCABULARY = [
+    # AI/ML
+    {"name": "LangChain", "tag_type": "tech"},
+    {"name": "LangGraph", "tag_type": "tech"},
+    {"name": "RAG", "tag_type": "concept"},
+    {"name": "Vector Database", "tag_type": "concept"},
+    {"name": "Embeddings", "tag_type": "concept"},
+    {"name": "Fine-tuning", "tag_type": "concept"},
+    {"name": "Prompt Engineering", "tag_type": "concept"},
+    {"name": "Agents", "tag_type": "concept"},
+    {"name": "Function Calling", "tag_type": "concept"},
+    {"name": "Multimodal", "tag_type": "concept"},
+    {"name": "Transformers", "tag_type": "concept"},
+    {"name": "Attention Mechanism", "tag_type": "concept"},
+    {"name": "RLHF", "tag_type": "concept"},
+    {"name": "Federated Learning", "tag_type": "concept"},
+    {"name": "ChromaDB", "tag_type": "tech"},
+    {"name": "Pinecone", "tag_type": "tech"},
+    {"name": "Ollama", "tag_type": "tech"},
+    {"name": "OpenAI", "tag_type": "tech"},
+    {"name": "Gemini", "tag_type": "tech"},
+    {"name": "Groq", "tag_type": "tech"},
+    {"name": "HuggingFace", "tag_type": "tech"},
+    {"name": "Neural Networks", "tag_type": "concept"},
+    {"name": "Supervised Learning", "tag_type": "concept"},
+    {"name": "Unsupervised Learning", "tag_type": "concept"},
+    {"name": "Reinforcement Learning", "tag_type": "concept"},
+    {"name": "Deep Learning", "tag_type": "concept"},
+    {"name": "Computer Vision", "tag_type": "concept"},
+    {"name": "NLP", "tag_type": "concept"},
+    {"name": "LLM", "tag_type": "concept"},
+    {"name": "Model Evaluation", "tag_type": "concept"},
+
+    # Backend
+    {"name": "FastAPI", "tag_type": "tech"},
+    {"name": "Django", "tag_type": "tech"},
+    {"name": "Flask", "tag_type": "tech"},
+    {"name": "REST API", "tag_type": "concept"},
+    {"name": "GraphQL", "tag_type": "concept"},
+    {"name": "WebSocket", "tag_type": "concept"},
+    {"name": "gRPC", "tag_type": "concept"},
+    {"name": "Authentication", "tag_type": "concept"},
+    {"name": "JWT", "tag_type": "concept"},
+    {"name": "OAuth", "tag_type": "concept"},
+    {"name": "Redis", "tag_type": "tech"},
+    {"name": "Celery", "tag_type": "tech"},
+    {"name": "Docker", "tag_type": "tech"},
+    {"name": "Kubernetes", "tag_type": "tech"},
+    {"name": "Nginx", "tag_type": "tech"},
+    {"name": "API Gateway", "tag_type": "concept"},
+    {"name": "Microservices", "tag_type": "concept"},
+    {"name": "Serverless", "tag_type": "concept"},
+    {"name": "Message Queues", "tag_type": "concept"},
+    {"name": "Event-Driven", "tag_type": "concept"},
+    {"name": "Express", "tag_type": "tech"},
+    {"name": "Node.js", "tag_type": "tech"},
+    {"name": "Spring Boot", "tag_type": "tech"},
+    {"name": "WebSockets", "tag_type": "concept"},
+    {"name": "Caching", "tag_type": "concept"},
+    {"name": "Load Balancing", "tag_type": "concept"},
+    {"name": "Rate Limiting", "tag_type": "concept"},
+    {"name": "Session Management", "tag_type": "concept"},
+    {"name": "CORS", "tag_type": "concept"},
+    {"name": "Security Headers", "tag_type": "concept"},
+
+    # Frontend
+    {"name": "React", "tag_type": "tech"},
+    {"name": "Vue", "tag_type": "tech"},
+    {"name": "Angular", "tag_type": "tech"},
+    {"name": "TypeScript", "tag_type": "tech"},
+    {"name": "JavaScript", "tag_type": "tech"},
+    {"name": "TailwindCSS", "tag_type": "tech"},
+    {"name": "State Management", "tag_type": "concept"},
+    {"name": "React Query", "tag_type": "tech"},
+    {"name": "Zustand", "tag_type": "tech"},
+    {"name": "Redux", "tag_type": "tech"},
+    {"name": "Next.js", "tag_type": "tech"},
+    {"name": "Vite", "tag_type": "tech"},
+    {"name": "CSS Grid", "tag_type": "concept"},
+    {"name": "Flexbox", "tag_type": "concept"},
+    {"name": "Responsive Design", "tag_type": "concept"},
+    {"name": "HTML5", "tag_type": "tech"},
+    {"name": "CSS3", "tag_type": "tech"},
+    {"name": "Sass", "tag_type": "tech"},
+    {"name": "Component Lifecycle", "tag_type": "concept"},
+    {"name": "Virtual DOM", "tag_type": "concept"},
+    {"name": "Single Page Application", "tag_type": "concept"},
+    {"name": "Web Accessibility", "tag_type": "concept"},
+    {"name": "SEO", "tag_type": "concept"},
+    {"name": "DOM Manipulation", "tag_type": "concept"},
+    {"name": "Bundlers", "tag_type": "concept"},
+
+    # Databases
+    {"name": "SQL", "tag_type": "concept"},
+    {"name": "PostgreSQL", "tag_type": "tech"},
+    {"name": "MySQL", "tag_type": "tech"},
+    {"name": "SQLite", "tag_type": "tech"},
+    {"name": "MongoDB", "tag_type": "tech"},
+    {"name": "SQLAlchemy", "tag_type": "tech"},
+    {"name": "Alembic", "tag_type": "tech"},
+    {"name": "Indexing", "tag_type": "concept"},
+    {"name": "Query Optimization", "tag_type": "concept"},
+    {"name": "Prisma", "tag_type": "tech"},
+    {"name": "Drizzle ORM", "tag_type": "tech"},
+    {"name": "NoSQL", "tag_type": "concept"},
+    {"name": "ACID Properties", "tag_type": "concept"},
+    {"name": "Transactions", "tag_type": "concept"},
+    {"name": "Database Migrations", "tag_type": "concept"},
+    {"name": "Connection Pooling", "tag_type": "concept"},
+    {"name": "Sharding", "tag_type": "concept"},
+    {"name": "Replication", "tag_type": "concept"},
+    {"name": "Normalisation", "tag_type": "concept"},
+
+    # DevOps
+    {"name": "CI/CD", "tag_type": "concept"},
+    {"name": "GitHub Actions", "tag_type": "tech"},
+    {"name": "Docker Compose", "tag_type": "tech"},
+    {"name": "AWS", "tag_type": "tech"},
+    {"name": "GCP", "tag_type": "tech"},
+    {"name": "Azure", "tag_type": "tech"},
+    {"name": "Terraform", "tag_type": "tech"},
+    {"name": "Monitoring", "tag_type": "concept"},
+    {"name": "Prometheus", "tag_type": "tech"},
+    {"name": "Grafana", "tag_type": "tech"},
+    {"name": "Git", "tag_type": "tech"},
+    {"name": "Linux", "tag_type": "tech"},
+    {"name": "Bash Scripting", "tag_type": "tech"},
+    {"name": "Logging", "tag_type": "concept"},
+    {"name": "Deployment", "tag_type": "concept"},
+    {"name": "Infrastructure as Code", "tag_type": "concept"},
+    {"name": "Configuration Management", "tag_type": "concept"},
+    {"name": "Sentry", "tag_type": "tech"},
+
+    # CS Fundamentals
+    {"name": "Data Structures", "tag_type": "concept"},
+    {"name": "Algorithms", "tag_type": "concept"},
+    {"name": "Time Complexity", "tag_type": "concept"},
+    {"name": "Space Complexity", "tag_type": "concept"},
+    {"name": "Dynamic Programming", "tag_type": "concept"},
+    {"name": "Graph Theory", "tag_type": "concept"},
+    {"name": "System Design", "tag_type": "concept"},
+    {"name": "Distributed Systems", "tag_type": "concept"},
+    {"name": "CAP Theorem", "tag_type": "concept"},
+    {"name": "Concurrency", "tag_type": "concept"},
+    {"name": "Networking", "tag_type": "concept"},
+    {"name": "HTTP/HTTPS", "tag_type": "concept"},
+    {"name": "DNS", "tag_type": "concept"},
+    {"name": "Operating Systems", "tag_type": "concept"},
+    {"name": "OOP", "tag_type": "concept"},
+    {"name": "Design Patterns", "tag_type": "concept"},
+    {"name": "Recursion", "tag_type": "concept"},
+    {"name": "Sorting Algorithms", "tag_type": "concept"},
+    {"name": "Searching Algorithms", "tag_type": "concept"},
+
+    # Testing
+    {"name": "Unit Testing", "tag_type": "concept"},
+    {"name": "Integration Testing", "tag_type": "concept"},
+    {"name": "E2E Testing", "tag_type": "concept"},
+    {"name": "TDD", "tag_type": "concept"},
+    {"name": "Pytest", "tag_type": "tech"},
+    {"name": "Selenium", "tag_type": "tech"},
+    {"name": "Playwright", "tag_type": "tech"},
+    {"name": "Jest", "tag_type": "tech"},
+    {"name": "Mocking", "tag_type": "concept"},
+    {"name": "CI Testing", "tag_type": "concept"},
+
+    # Domains / Sub-areas
+    {"name": "AI/ML", "tag_type": "domain"},
+    {"name": "Backend", "tag_type": "domain"},
+    {"name": "Frontend", "tag_type": "domain"},
+    {"name": "Databases", "tag_type": "domain"},
+    {"name": "DevOps", "tag_type": "domain"},
+    {"name": "CS Fundamentals", "tag_type": "domain"},
+    {"name": "Testing", "tag_type": "domain"},
+]
+
+async def seed_tags(db_session):
+    """Inserts all TAG_VOCABULARY tags into the database if they do not exist."""
+    # Query for existing tags in the database
+    result = await db_session.execute(select(Tag.name))
+    existing_names = set(result.scalars().all())
+
+    new_tags = []
+    for item in TAG_VOCABULARY:
+        name = item["name"]
+        if name not in existing_names:
+            new_tags.append(Tag(
+                name=name,
+                tag_type=item["tag_type"],
+                usage_count=0
+            ))
+
+    if new_tags:
+        db_session.add_all(new_tags)
+        await db_session.commit()
