@@ -1,0 +1,30 @@
+# Python envs and caches
+venv/
+prep-helper/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node modules and build output
+node_modules/
+prep-helper/frontend/node_modules/
+prep-helper/frontend/dist/
+
+# Local Vault, logs, database files, and config
+vault/
+prep-helper/vault/
+.prephelper/
+prep-helper/.prephelper/
+*.sqlite
+*.sqlite-journal
+*.log
+
+# OS / IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Binary project documents
+PrepHelper_ProjectDocs.docx
