@@ -31,5 +31,7 @@ export const saveSettings = (data) => api.post('/settings', data)
 export const testApiKey = (data) => api.post('/settings/test-key', data)
 export const setupVault = (vault_path) => api.post('/vault/setup', { vault_path })
 export const getHealth = () => api.get('/health')
+export const suggestQuestionMetadata = (data) => api.post('/questions/suggest-metadata', data)
+
 
 export default api

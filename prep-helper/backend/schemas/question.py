@@ -29,3 +29,8 @@ class QuestionPatch(BaseModel):
     bookmarked: Optional[bool] = None
     add_tags: Optional[List[str]] = None
     remove_tags: Optional[List[str]] = None
+
+class QuestionSuggestRequest(BaseModel):
+    question_text: str
+    answer_text: str
+
