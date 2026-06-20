@@ -3,6 +3,7 @@ import { BookOpen, Search, Filter, Loader, RefreshCw, Star, HelpCircle } from 'l
 import api from '../api/client'
 import TagFilter from '../components/TagFilter'
 import QuestionCard from '../components/QuestionCard'
+import { QuestionCardSkeleton } from '../components/ui/Skeleton'
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState([])
@@ -187,9 +188,11 @@ export default function QuestionBank() {
 
           {/* Loading States */}
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 space-y-4">
-              <Loader className="h-10 w-10 text-indigo-500 animate-spin" />
-              <p className="text-slate-400 text-sm">Searching questions repository...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <QuestionCardSkeleton />
+              <QuestionCardSkeleton />
+              <QuestionCardSkeleton />
+              <QuestionCardSkeleton />
             </div>
           ) : questions.length === 0 ? (
             /* Empty State */

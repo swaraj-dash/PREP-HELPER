@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  prep-helper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prep-helper:latest
+    container_name: prep-helper-app
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./vault:/vault
+    environment:
+      - VAULT_PATH=/vault
+      - PORT=8765
+    restart: unless-stopped

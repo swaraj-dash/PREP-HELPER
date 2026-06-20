@@ -961,44 +961,44 @@ Before moving to Phase 1, confirm ALL of the following:
 
 ### TASK-801 — Loading states + skeletons
 
-- [ ] Every page that fetches data: show skeleton loaders while loading (not blank white)
-- [ ] `QuestionCard` skeleton: grey animated bars for question/answer/tags
-- [ ] `NoteBlock` skeleton: heading bar + 3 content lines
-- [ ] Dashboard stats: skeleton number boxes
+- [x] Every page that fetches data: show skeleton loaders while loading (not blank white)
+- [x] `QuestionCard` skeleton: grey animated bars for question/answer/tags
+- [x] `NoteBlock` skeleton: heading bar + 3 content lines
+- [x] Dashboard stats: skeleton number boxes
 
 ---
 
 ### TASK-802 — Empty states
 
-- [ ] Documents page: empty = upload illustration + "Upload your first PDF"
-- [ ] Question Bank: no results = "No questions match your filters. Try removing a tag." OR "No questions yet — upload a PDF to get started."
-- [ ] Study Notes: no topic selected = "Select a topic from the left panel"
-- [ ] Flashcards: no cards due = "🎉 You're all caught up! Next review due {date}."
-- [ ] Progress: no activity = "Start studying to track your progress."
+- [x] Documents page: empty = upload illustration + "Upload your first PDF"
+- [x] Question Bank: no results = "No questions match your filters. Try removing a tag." OR "No questions yet — upload a PDF to get started."
+- [x] Study Notes: no topic selected = "Select a topic from the left panel"
+- [x] Flashcards: no cards due = "🎉 You're all caught up! Next review due {date}."
+- [x] Progress: no activity = "Start studying to track your progress."
 
 ---
 
 ### TASK-803 — Error states
 
-- [ ] Failed API call: show inline error with "Retry" button (not just a toast)
-- [ ] Pipeline error: show error message on Documents page + "Reprocess" button
-- [ ] Import failure (wrong passphrase): show clear error, don't clear the passphrase input
-- [ ] Vault not configured: block all navigation except Settings with a banner
+- [x] Failed API call: show inline error with "Retry" button (not just a toast)
+- [x] Pipeline error: show error message on Documents page + "Reprocess" button
+- [x] Import failure (wrong passphrase): show clear error, don't clear the passphrase input
+- [x] Vault not configured: block all navigation except Settings with a banner
 
 ---
 
 ### TASK-804 — Responsive layout
 
-- [ ] Sidebar collapses to icons-only below 1280px width
-- [ ] Sidebar becomes bottom nav bar below 768px
-- [ ] Question Bank: filter panel moves above list on mobile
-- [ ] FlashCard: full screen on mobile with swipe gesture support (swipe right = Good, swipe left = Again)
+- [x] Sidebar collapses to icons-only below 1280px width
+- [x] Sidebar becomes bottom nav bar below 768px
+- [x] Question Bank: filter panel moves above list on mobile
+- [x] FlashCard: full screen on mobile with swipe gesture support (swipe right = Good, swipe left = Again)
 
 ---
 
 ### TASK-805 — Launcher scripts
 
-- [ ] `launcher.py`:
+- [x] `launcher.py`:
   ```python
   # 1. Check if venv exists; if not, create it and pip install
   # 2. Build frontend: npm run build (if dist/ doesn't exist or --rebuild flag)
@@ -1007,35 +1007,36 @@ Before moving to Phase 1, confirm ALL of the following:
   # 5. Open http://localhost:8765 in default browser
   # 6. Print "Prep Helper running at http://localhost:8765 — Press Ctrl+C to stop"
   ```
-- [ ] `start.sh`: `#!/bin/bash` wrapper that activates venv and runs `python launcher.py`
-- [ ] `start.bat`: Windows batch equivalent
-- [ ] `docker-compose.yml`: single service, mounts a host directory as vault, exposes port 8765
+- [x] `start.sh`: `#!/bin/bash` wrapper that activates venv and runs `python launcher.py`
+- [x] `start.bat`: Windows batch equivalent
+- [x] `docker-compose.yml`: single service, mounts a host directory as vault, exposes port 8765
 
 ---
 
 ### TASK-806 — README.md
 
-- [ ] Installation section: Prerequisites (Python 3.11+, Node 18+), clone, run `./start.sh`
-- [ ] First-run section: vault setup, adding API key, uploading first PDF
-- [ ] FAQ: "Where is my data?" / "Can I move my vault?" / "What if I forget my export passphrase?" / "Which AI provider should I use?"
-- [ ] Screenshots section (placeholder markdown, agent to fill with actual screenshots)
+- [x] Installation section: Prerequisites (Python 3.11+, Node 18+), clone, run `./start.sh`
+- [x] First-run section: vault setup, adding API key, uploading first PDF
+- [x] FAQ: "Where is my data?" / "Can I move my vault?" / "What if I forget my export passphrase?" / "Which AI provider should I use?"
+- [x] Screenshots section (placeholder markdown, agent to fill with actual screenshots)
 
 ---
 
 ### TASK-807 — Final end-to-end test
 
-- [ ] Fresh machine: delete `~/.prephelper/` and vault folder
-- [ ] Run `./start.sh` → welcome screen appears
-- [ ] Set up vault, enter Groq API key, test it → ✅
-- [ ] Upload a Q&A PDF → pipeline completes, questions visible in Question Bank
-- [ ] Upload a notes PDF on same topic → Study Notes shows merged sequential view
-- [ ] Start flashcard session → flip, rate, session ends with summary
-- [ ] Check Dashboard → streak shows 1, heatmap has today marked
-- [ ] Export questions tagged with one topic → `.phvault` generated
-- [ ] Import the `.phvault` → questions imported successfully
-- [ ] All pages load without console errors
+- [x] Fresh machine: delete `~/.prephelper/` and vault folder
+- [x] Run `./start.sh` → welcome screen appears
+- [x] Set up vault, enter Groq API key, test it → ✅
+- [x] Upload a Q&A PDF → pipeline completes, questions visible in Question Bank
+- [x] Upload a notes PDF on same topic → Study Notes shows merged sequential view
+- [x] Start flashcard session → flip, rate, session ends with summary
+- [x] Check Dashboard → streak shows 1, heatmap has today marked
+- [x] Export questions tagged with one topic → `.phvault` generated
+- [x] Import the `.phvault` → questions imported successfully
+- [x] All pages load without console errors
 
 ---
 
 *TASKS.md — Prep Helper | v1.0 | All tasks must be completed in order within each phase.*
 *Check off each task before proceeding. Phase completion checks must all pass before starting the next phase.*
+

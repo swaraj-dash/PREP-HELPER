@@ -11,7 +11,8 @@ import {
   Sparkles,
   BarChart2,
   ChevronRight,
-  Flame
+  Flame,
+  Check
 } from 'lucide-react'
 import TagFilter from '../components/TagFilter'
 import FlashCard from '../components/FlashCard'
@@ -180,6 +181,18 @@ export default function Flashcards() {
                 {/* TagFilter component */}
                 <TagFilter selectedTags={selectedTags} onChange={setSelectedTags} />
               </div>
+
+              {stats.due_today === 0 && !studyAhead && (
+                <div className="bg-emerald-950/10 border border-emerald-950/20 rounded-2xl p-4 flex items-center space-x-3 text-xs leading-relaxed text-emerald-450 animate-fadeIn">
+                  <Check className="h-5 w-5 text-emerald-450 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-bold text-white">🎉 You're all caught up!</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      No cards are due for review today. Enable "Study Ahead" below to practice cards anyway.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Options & study ahead */}
               <div className="border-t border-slate-850 pt-4 flex flex-col space-y-3">

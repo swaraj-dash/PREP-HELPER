@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BookOpen, Search, Eye, EyeOff, LayoutList, HelpCircle, FileText, Loader, RefreshCw } from 'lucide-react'
 import api from '../api/client'
 import NoteBlock from '../components/NoteBlock'
+import { NoteBlockSkeleton } from '../components/ui/Skeleton'
 
 export default function StudyNotes() {
   const [tags, setTags] = useState([])
@@ -178,10 +179,10 @@ export default function StudyNotes() {
               </div>
             </div>
           ) : loadingNotes ? (
-            /* Loading notes spinner */
-            <div className="flex flex-col items-center justify-center py-24 space-y-4">
-              <RefreshCw className="h-10 w-10 text-indigo-500 animate-spin" />
-              <p className="text-slate-400 text-sm">Assembling sequential study guide...</p>
+            <div className="space-y-6">
+              <NoteBlockSkeleton />
+              <NoteBlockSkeleton />
+              <NoteBlockSkeleton />
             </div>
           ) : notes.length === 0 ? (
             /* No notes state */

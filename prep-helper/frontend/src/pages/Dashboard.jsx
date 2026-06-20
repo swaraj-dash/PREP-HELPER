@@ -15,9 +15,11 @@ import {
 import toast from 'react-hot-toast'
 import api from '../api/client'
 import StudyHeatmap from '../components/StudyHeatmap'
+import { StatsCardSkeleton } from '../components/ui/Skeleton'
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
   const [data, setData] = useState({
     streak: 0,
     heatmap: [],
@@ -33,6 +35,7 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     setLoading(true)
+    setHasError(false)
     try {
       const res = await api.get('/progress/dashboard')
       if (res.data) {
@@ -45,6 +48,7 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error('Failed to load dashboard:', err)
+      setHasError(true)
     } finally {
       setLoading(false)
     }
@@ -54,11 +58,85 @@ export default function Dashboard() {
     fetchDashboardData()
   }, [])
 
+  if (hasError) {
+    return (
+      <div className="p-8 max-w-xl mx-auto mt-20 text-center space-y-6 animate-fadeIn">
+        <div className="mx-auto w-16 h-16 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center text-rose-455">
+          <AlertTriangle className="h-8 w-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-white">Failed to load dashboard metrics</h2>
+          <p className="text-slate-450 text-sm leading-relaxed max-w-sm mx-auto">
+            There was a connection issue or system error loading metrics. Please verify the backend service is running.
+          </p>
+        </div>
+        <button
+          onClick={fetchDashboardData}
+          className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/10 text-sm"
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span>Retry Loading Dashboard</span>
+        </button>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
-      <div className="p-8 max-w-5xl mx-auto space-y-8 animate-fadeIn text-slate-400 text-center py-20">
-        <Flame className="h-10 w-10 animate-pulse text-indigo-400 mx-auto" />
-        <p className="mt-2 font-bold text-xs uppercase tracking-wider">Loading dashboard metrics...</p>
+      <div className="p-8 max-w-5xl mx-auto space-y-8 animate-fadeIn text-slate-100 text-left">
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center border-b border-slate-900 pb-6">
+          <div className="space-y-2">
+            <div className="h-8 w-60 animate-pulse bg-slate-800 rounded-lg" />
+            <div className="h-4 w-96 animate-pulse bg-slate-800 rounded-lg" />
+          </div>
+          <div className="h-11 w-48 animate-pulse bg-slate-800 rounded-xl" />
+        </div>
+        
+        {/* Cards Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+        </div>
+
+        {/* Heatmap Skeleton */}
+        <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 h-40 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="h-4 w-48 animate-pulse bg-slate-800 rounded-lg" />
+            <div className="h-3 w-64 animate-pulse bg-slate-800 rounded-lg" />
+          </div>
+          <div className="h-16 w-full animate-pulse bg-slate-800 rounded-xl mt-4" />
+        </div>
+
+        {/* Core Analytics Split Panels */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 h-80 space-y-4">
+            <div className="h-4 w-40 animate-pulse bg-slate-800 rounded-lg" />
+            <div className="space-y-3">
+              <div className="h-8 w-full animate-pulse bg-slate-800 rounded-xl" />
+              <div className="h-8 w-full animate-pulse bg-slate-800 rounded-xl" />
+              <div className="h-8 w-full animate-pulse bg-slate-800 rounded-xl" />
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 h-36 flex flex-col justify-between">
+              <div className="h-4 w-48 animate-pulse bg-slate-800 rounded-lg" />
+              <div className="space-y-2">
+                <div className="h-7 w-full animate-pulse bg-slate-800 rounded-lg" />
+                <div className="h-7 w-full animate-pulse bg-slate-800 rounded-lg" />
+              </div>
+            </div>
+            <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 h-36 flex flex-col justify-between">
+              <div className="h-4 w-48 animate-pulse bg-slate-800 rounded-lg" />
+              <div className="space-y-2">
+                <div className="h-7 w-full animate-pulse bg-slate-800 rounded-lg" />
+                <div className="h-7 w-full animate-pulse bg-slate-800 rounded-lg" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

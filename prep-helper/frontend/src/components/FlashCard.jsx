@@ -5,9 +5,34 @@ import TagChip from './TagChip'
 
 export default function FlashCard({ question, onRate, isSubmitting = false }) {
   const [isFlipped, setIsFlipped] = useState(false)
+  const [touchStart, setTouchStart] = useState(0)
 
   const handleFlip = () => {
     setIsFlipped(!isFlipped)
+  }
+
+  const handleTouchStart = (e) => {
+    setTouchStart(e.touches[0].clientX)
+  }
+
+  const handleTouchEnd = (e) => {
+    const touchEnd = e.changedTouches[0].clientX
+    const diff = touchEnd - touchStart
+    if (Math.abs(diff) > 80) { // 80px threshold for easier swipe trigger
+      if (!isFlipped) {
+        setIsFlipped(true)
+      } else {
+        if (diff > 80) {
+          // Swipe Right = Good
+          setIsFlipped(false)
+          onRate('good')
+        } else if (diff < -80) {
+          // Swipe Left = Again
+          setIsFlipped(false)
+          onRate('again')
+        }
+      }
+    }
   }
 
   const handleRateClick = (e, rating) => {
@@ -21,7 +46,13 @@ export default function FlashCard({ question, onRate, isSubmitting = false }) {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto h-[400px] cursor-pointer" style={cardStyle} onClick={handleFlip}>
+    <div 
+      className="w-full max-w-2xl mx-auto h-[400px] cursor-pointer select-none" 
+      style={cardStyle} 
+      onClick={handleFlip}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <motion.div
         className="w-full h-full relative"
         style={{ transformStyle: 'preserve-3d' }}
