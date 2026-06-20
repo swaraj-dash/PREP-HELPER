@@ -423,8 +423,7 @@ export default function Settings() {
               <select
                 value={modelPrefs.extraction}
                 onChange={(e) => setModelPrefs({ ...modelPrefs, extraction: e.target.value })}
-                disabled={!hasAvailableModels}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-55 disabled:cursor-not-allowed transition-all"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 transition-all"
               >
                 {renderModelOptions(modelPrefs.extraction)}
               </select>
@@ -436,8 +435,7 @@ export default function Settings() {
               <select
                 value={modelPrefs.tagging}
                 onChange={(e) => setModelPrefs({ ...modelPrefs, tagging: e.target.value })}
-                disabled={!hasAvailableModels}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-55 disabled:cursor-not-allowed transition-all"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 transition-all"
               >
                 {renderModelOptions(modelPrefs.tagging)}
               </select>
@@ -449,8 +447,7 @@ export default function Settings() {
               <select
                 value={modelPrefs.reasoning}
                 onChange={(e) => setModelPrefs({ ...modelPrefs, reasoning: e.target.value })}
-                disabled={!hasAvailableModels}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-55 disabled:cursor-not-allowed transition-all"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 transition-all"
               >
                 {renderModelOptions(modelPrefs.reasoning)}
               </select>
