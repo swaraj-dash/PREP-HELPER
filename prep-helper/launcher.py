@@ -42,10 +42,10 @@ def setup_venv():
     print("Checking/installing backend dependencies...")
     requirements_path = os.path.join(BACKEND_DIR, "requirements.txt")
     
-    # Ensure pip is upgraded
-    subprocess.run([PIP_EXE, "install", "--upgrade", "pip"], check=True)
+    # Ensure pip is upgraded using python -m pip to avoid locking errors on Windows
+    subprocess.run([PYTHON_EXE, "-m", "pip", "install", "--upgrade", "pip"], check=True)
     # Install dependencies
-    subprocess.run([PIP_EXE, "install", "-r", requirements_path], check=True)
+    subprocess.run([PYTHON_EXE, "-m", "pip", "install", "-r", requirements_path], check=True)
 
 def build_frontend(force_rebuild=False):
     """Build the frontend React app if needed."""
