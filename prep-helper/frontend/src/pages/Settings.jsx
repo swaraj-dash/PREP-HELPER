@@ -14,6 +14,7 @@ export default function Settings() {
     gemini: '',
     groq: '',
     openai: '',
+    nvidia: '',
   })
   const [isSettingUpVault, setIsSettingUpVault] = useState(false)
 
@@ -29,6 +30,7 @@ export default function Settings() {
     gemini: [],
     groq: [],
     openai: [],
+    nvidia: [],
   })
 
   // Test key status
@@ -36,6 +38,7 @@ export default function Settings() {
     gemini: { status: 'idle', error: '' }, // 'idle' | 'testing' | 'success' | 'error'
     groq: { status: 'idle', error: '' },
     openai: { status: 'idle', error: '' },
+    nvidia: { status: 'idle', error: '' },
   })
 
   useEffect(() => {
@@ -49,6 +52,7 @@ export default function Settings() {
             gemini: data.providers_configured.includes('gemini') ? '***' : '',
             groq: data.providers_configured.includes('groq') ? '***' : '',
             openai: data.providers_configured.includes('openai') ? '***' : '',
+            nvidia: data.providers_configured.includes('nvidia') ? '***' : '',
           })
           if (data.model_prefs && Object.keys(data.model_prefs).length > 0) {
             setModelPrefs(data.model_prefs)
@@ -146,6 +150,7 @@ export default function Settings() {
           gemini: res.data.providers_configured.includes('gemini') ? '***' : '',
           groq: res.data.providers_configured.includes('groq') ? '***' : '',
           openai: res.data.providers_configured.includes('openai') ? '***' : '',
+          nvidia: res.data.providers_configured.includes('nvidia') ? '***' : '',
         })
         if (res.data.available_models) {
           setAvailableModels((prev) => ({
@@ -183,6 +188,13 @@ export default function Settings() {
         {availableModels.groq.length > 0 && (
           <optgroup label="Groq">
             {availableModels.groq.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </optgroup>
+        )}
+        {availableModels.nvidia && availableModels.nvidia.length > 0 && (
+          <optgroup label="Nvidia NIM">
+            {availableModels.nvidia.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
           </optgroup>
@@ -259,7 +271,7 @@ export default function Settings() {
             Keys are encrypted using a machine-local key and stored in <code>~/.prephelper/config.json</code>. They are never sent to external servers except direct API requests.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Gemini */}
             <div className="bg-slate-950/60 rounded-xl p-5 border border-slate-800 space-y-4 relative flex flex-col justify-between">
               <div>
@@ -323,6 +335,39 @@ export default function Settings() {
               </div>
               {testStatus.groq.error && (
                 <p className="text-[10px] text-rose-400 mt-1 break-words">{testStatus.groq.error}</p>
+              )}
+            </div>
+
+            {/* Nvidia NIM */}
+            <div className="bg-slate-950/60 rounded-xl p-5 border border-slate-800 space-y-4 relative flex flex-col justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Nvidia NIM</h3>
+                <p className="text-xs text-slate-500 mt-1">High-performance open models.</p>
+                <div className="mt-4 space-y-2">
+                  <label className="text-xs text-slate-400 font-medium">API Key</label>
+                  <input
+                    type="password"
+                    value={apiKeys.nvidia}
+                    onChange={(e) => setApiKeys({ ...apiKeys, nvidia: e.target.value })}
+                    placeholder={apiKeys.nvidia === '***' ? '••••••••••••' : 'Enter API Key'}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <div className="pt-4 flex items-center justify-between border-t border-slate-800/60 mt-4">
+                <button
+                  type="button"
+                  onClick={() => handleTestKey('nvidia')}
+                  disabled={testStatus.nvidia.status === 'testing'}
+                  className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center space-x-1"
+                >
+                  {testStatus.nvidia.status === 'testing' ? 'Verifying...' : 'Verify Key'}
+                </button>
+                {testStatus.nvidia.status === 'success' && <Check className="h-5 w-5 text-emerald-400" />}
+                {testStatus.nvidia.status === 'error' && <X className="h-5 w-5 text-rose-500" />}
+              </div>
+              {testStatus.nvidia.error && (
+                <p className="text-[10px] text-rose-400 mt-1 break-words">{testStatus.nvidia.error}</p>
               )}
             </div>
 

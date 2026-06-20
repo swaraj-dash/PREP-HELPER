@@ -10,7 +10,17 @@ router = APIRouter(tags=["settings"])
 DEFAULT_PROVIDER_MODELS = {
     "gemini": ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-8b", "gemini-2.0-flash-exp"],
     "groq": ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"],
-    "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+    "nvidia": [
+        "meta/llama-3.3-70b-instruct",
+        "meta/llama-3.1-70b-instruct",
+        "nvidia/llama-3.1-nemotron-70b-instruct",
+        "meta/llama-3.1-8b-instruct",
+        "google/gemma-2-9b-it",
+        "google/gemma-2-27b-it",
+        "mistralai/mixtral-8x7b-instruct-v0.1",
+        "mistralai/mistral-large-2-instruct"
+    ]
 }
 
 def _get_available_models(config):
@@ -150,6 +160,19 @@ async def test_key_endpoint(payload: TestKeyRequest):
             supported = sorted(list(set(supported)))
             if not supported:
                 supported = DEFAULT_PROVIDER_MODELS["gemini"]
+            return {"valid": True, "models": supported}
+        elif provider == "nvidia":
+            import openai
+            client = openai.AsyncOpenAI(api_key=key, base_url="https://integrate.api.nvidia.com/v1")
+            models_response = await client.models.list()
+            supported = []
+            for m in models_response.data:
+                mid = m.id
+                if any(x in mid.lower() for x in ["llama", "gemma", "mixtral", "mistral", "nemotron"]) and "instruct" in mid.lower():
+                    supported.append(mid)
+            supported = sorted(list(set(supported)))
+            if not supported:
+                supported = DEFAULT_PROVIDER_MODELS["nvidia"]
             return {"valid": True, "models": supported}
         else:
             return {"valid": False, "error": f"Unknown provider '{provider}'"}

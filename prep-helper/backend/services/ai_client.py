@@ -30,6 +30,14 @@ class AIClient:
                 api_key=self.api_key,
                 temperature=0.0
             )
+        elif self.provider == "nvidia":
+            from langchain_openai import ChatOpenAI
+            self._llm = ChatOpenAI(
+                model=self.model,
+                api_key=self.api_key,
+                base_url="https://integrate.api.nvidia.com/v1",
+                temperature=0.0
+            )
         elif self.provider == "gemini":
             from langchain_google_genai import ChatGoogleGenerativeAI
             # Map standard gemini names if needed, ensure api_key is passed
@@ -51,9 +59,7 @@ class AIClient:
         # Configure JSON mode if requested
         kwargs = {}
         if json_mode:
-            if self.provider == "openai":
-                kwargs["response_format"] = {"type": "json_object"}
-            elif self.provider == "groq":
+            if self.provider in ["openai", "groq", "nvidia"]:
                 kwargs["response_format"] = {"type": "json_object"}
             elif self.provider == "gemini":
                 # For Gemini, model_kwargs response_mime_type configuration is cleaner
@@ -176,7 +182,9 @@ def get_ai_client(task_type: str = "extraction") -> AIClient:
         elif provider == "openai":
             model = "gpt-4o-mini"
         elif provider == "groq":
-            model = "llama-3.1-8b-instant"
+            model = "llama-3.3-70b-versatile"
+        elif provider == "nvidia":
+            model = "meta/llama-3.3-70b-instruct"
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
@@ -187,6 +195,8 @@ def get_ai_client(task_type: str = "extraction") -> AIClient:
         provider = "gemini"
     elif model_lower.startswith("gpt-"):
         provider = "openai"
+    elif "/" in model_lower:
+        provider = "nvidia"
     else:
         provider = "groq"
 
