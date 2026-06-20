@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from backend.config import load_config, is_vault_configured
 from backend.database import init_db
-from backend.routers import settings, documents, ws, questions, tags, notes, annotations, srs
+from backend.routers import settings, documents, ws, questions, tags, notes, annotations, srs, progress
 
 app = FastAPI(title="Prep Helper", version="1.0.0")
 
@@ -41,6 +41,7 @@ app.include_router(tags.router, prefix="/api")
 app.include_router(notes.router, prefix="/api")
 app.include_router(annotations.router, prefix="/api")
 app.include_router(srs.router, prefix="/api")
+app.include_router(progress.router, prefix="/api")
 app.include_router(ws.router)
 
 @app.get("/api/health")
