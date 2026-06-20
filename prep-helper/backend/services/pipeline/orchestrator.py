@@ -60,6 +60,19 @@ async def run_pipeline(doc_id: str, file_path: str, original_name: str):
             })
 
             cleaned_text, page_count = extract_to_markdown(file_path)
+            
+            # Check if digital text layer is empty or extremely short (e.g. scanned PDF/image notes)
+            if len(cleaned_text.strip()) < 200:
+                print(f"[Orchestrator] Digital text extraction retrieved only {len(cleaned_text.strip())} characters. Scanned PDF or image notes detected. Triggering AI Vision OCR...")
+                await manager.send_event(doc_id, {
+                    "stage": "extracting",
+                    "progress": 15,
+                    "message": "Scanned document or image notes detected. Running AI Vision OCR on pages...",
+                    "details": {}
+                })
+                from backend.services.pipeline.extractor import extract_via_ai_vision
+                cleaned_text = await extract_via_ai_vision(file_path)
+
             doc.page_count = page_count
             await db.commit()
 

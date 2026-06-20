@@ -7,6 +7,7 @@ class SettingsOut(BaseModel):
     model_prefs: Dict[str, str] = Field(default_factory=dict)
     providers_configured: List[str] = Field(default_factory=list)
     available_models: Dict[str, List[str]] = Field(default_factory=dict)
+    limits: Dict[str, dict] = Field(default_factory=dict)
 
 class SettingsUpdate(BaseModel):
     api_keys: Dict[str, str] = Field(default_factory=dict)  # {"gemini": "AIza...", "openai": "sk-...", "groq": "gsk-..."}
