@@ -24,6 +24,13 @@ export default function Settings() {
     reasoning: 'gemini-1.5-pro',
   })
 
+  // Available models mapping from active/verified providers
+  const [availableModels, setAvailableModels] = useState({
+    gemini: [],
+    groq: [],
+    openai: [],
+  })
+
   // Test key status
   const [testStatus, setTestStatus] = useState({
     gemini: { status: 'idle', error: '' }, // 'idle' | 'testing' | 'success' | 'error'
@@ -45,6 +52,12 @@ export default function Settings() {
           })
           if (data.model_prefs && Object.keys(data.model_prefs).length > 0) {
             setModelPrefs(data.model_prefs)
+          }
+          if (data.available_models) {
+            setAvailableModels((prev) => ({
+              ...prev,
+              ...data.available_models,
+            }))
           }
         }
       })
@@ -96,6 +109,12 @@ export default function Settings() {
           ...prev,
           [provider]: { status: 'success', error: '' },
         }))
+        if (res.data.models) {
+          setAvailableModels((prev) => ({
+            ...prev,
+            [provider]: res.data.models,
+          }))
+        }
         toast.success(`${provider.toUpperCase()} API key is valid!`)
       } else {
         setTestStatus((prev) => ({
@@ -128,10 +147,55 @@ export default function Settings() {
           groq: res.data.providers_configured.includes('groq') ? '***' : '',
           openai: res.data.providers_configured.includes('openai') ? '***' : '',
         })
+        if (res.data.available_models) {
+          setAvailableModels((prev) => ({
+            ...prev,
+            ...res.data.available_models,
+          }))
+        }
       }
     } catch (err) {
       console.error(err)
     }
+  }
+
+  const hasAvailableModels = Object.values(availableModels).some((list) => list.length > 0)
+
+  const renderModelOptions = (selectedVal) => {
+    const hasModels = Object.values(availableModels).some((list) => list.length > 0)
+    const isSelectedVerified = Object.values(availableModels).some((list) => list.includes(selectedVal))
+    
+    return (
+      <>
+        {!isSelectedVerified && selectedVal && (
+          <option value={selectedVal}>{selectedVal} (Configured)</option>
+        )}
+        {availableModels.gemini.length > 0 && (
+          <optgroup label="Google Gemini">
+            {availableModels.gemini.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </optgroup>
+        )}
+        {availableModels.groq.length > 0 && (
+          <optgroup label="Groq">
+            {availableModels.groq.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </optgroup>
+        )}
+        {availableModels.openai.length > 0 && (
+          <optgroup label="OpenAI">
+            {availableModels.openai.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </optgroup>
+        )}
+        {!hasModels && !selectedVal && (
+          <option value="">No verified models available. Please verify an API key first.</option>
+        )}
+      </>
+    )
   }
 
   return (
@@ -311,11 +375,10 @@ export default function Settings() {
               <select
                 value={modelPrefs.extraction}
                 onChange={(e) => setModelPrefs({ ...modelPrefs, extraction: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                disabled={!hasAvailableModels}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-55 disabled:cursor-not-allowed transition-all"
               >
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="llama-3.1-8b-instant">Llama 3.1 8B (Groq)</option>
+                {renderModelOptions(modelPrefs.extraction)}
               </select>
             </div>
 
@@ -325,11 +388,10 @@ export default function Settings() {
               <select
                 value={modelPrefs.tagging}
                 onChange={(e) => setModelPrefs({ ...modelPrefs, tagging: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                disabled={!hasAvailableModels}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-55 disabled:cursor-not-allowed transition-all"
               >
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="gemma-2-9b-it">Gemma 2 9B (Groq)</option>
+                {renderModelOptions(modelPrefs.tagging)}
               </select>
             </div>
 
@@ -339,11 +401,10 @@ export default function Settings() {
               <select
                 value={modelPrefs.reasoning}
                 onChange={(e) => setModelPrefs({ ...modelPrefs, reasoning: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                disabled={!hasAvailableModels}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 disabled:opacity-55 disabled:cursor-not-allowed transition-all"
               >
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="llama-3.1-70b-versatile">Llama 3.1 70B (Groq)</option>
+                {renderModelOptions(modelPrefs.reasoning)}
               </select>
             </div>
           </div>

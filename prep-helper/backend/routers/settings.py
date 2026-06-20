@@ -7,6 +7,19 @@ from backend.schemas.settings import SettingsOut, SettingsUpdate, TestKeyRequest
 
 router = APIRouter(tags=["settings"])
 
+DEFAULT_PROVIDER_MODELS = {
+    "gemini": ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-8b", "gemini-2.0-flash-exp"],
+    "groq": ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+}
+
+def _get_available_models(config):
+    available = {}
+    for provider, models in DEFAULT_PROVIDER_MODELS.items():
+        if config.api_keys.get(provider):
+            available[provider] = models
+    return available
+
 @router.get("/settings", response_model=SettingsOut)
 def get_settings():
     """Returns the current settings. API keys are masked in the response."""
@@ -20,7 +33,8 @@ def get_settings():
         vault_path=config.vault_path,
         vault_configured=is_vault_configured(),
         model_prefs=config.model_prefs,
-        providers_configured=providers
+        providers_configured=providers,
+        available_models=_get_available_models(config)
     )
 
 @router.post("/settings", response_model=SettingsOut)
@@ -50,7 +64,8 @@ def update_settings(payload: SettingsUpdate):
         vault_path=config.vault_path,
         vault_configured=is_vault_configured(),
         model_prefs=config.model_prefs,
-        providers_configured=providers
+        providers_configured=providers,
+        available_models=_get_available_models(config)
     )
 
 @router.post("/vault/setup")
@@ -97,19 +112,45 @@ async def test_key_endpoint(payload: TestKeyRequest):
         if provider == "openai":
             import openai
             client = openai.AsyncOpenAI(api_key=key)
-            await client.models.list()
-            return {"valid": True}
+            models_response = await client.models.list()
+            supported = []
+            for m in models_response.data:
+                mid = m.id
+                if mid.startswith("gpt-") or mid.startswith("o1-") or mid.startswith("o3-"):
+                    if not any(x in mid for x in ["-instruct", "-embedding", "-moderation", "-similarity"]):
+                        supported.append(mid)
+            supported = sorted(list(set(supported)))
+            if not supported:
+                supported = DEFAULT_PROVIDER_MODELS["openai"]
+            return {"valid": True, "models": supported}
         elif provider == "groq":
             from groq import AsyncGroq
             client = AsyncGroq(api_key=key)
-            await client.models.list()
-            return {"valid": True}
+            models_response = await client.models.list()
+            supported = []
+            for m in models_response.data:
+                mid = m.id
+                if any(x in mid.lower() for x in ["llama", "mixtral", "gemma"]):
+                    supported.append(mid)
+            supported = sorted(list(set(supported)))
+            if not supported:
+                supported = DEFAULT_PROVIDER_MODELS["groq"]
+            return {"valid": True, "models": supported}
         elif provider == "gemini":
             import google.generativeai as genai
             genai.configure(api_key=key)
-            # A simple call to verify connection
-            genai.list_models()
-            return {"valid": True}
+            models = genai.list_models()
+            supported = []
+            for m in models:
+                mid = m.name
+                short_name = mid.replace("models/", "")
+                if "gemini" in short_name.lower():
+                    if "generateContent" in m.supported_generation_methods:
+                        supported.append(short_name)
+            supported = sorted(list(set(supported)))
+            if not supported:
+                supported = DEFAULT_PROVIDER_MODELS["gemini"]
+            return {"valid": True, "models": supported}
         else:
             return {"valid": False, "error": f"Unknown provider '{provider}'"}
     except Exception as e:
