@@ -159,11 +159,14 @@ export default function Settings() {
     }
   }
 
-  const hasAvailableModels = Object.values(availableModels).some((list) => list.length > 0)
+  const hasAvailableModels = Object.values(availableModels).some((list) => list && list.length > 0)
+
+  console.log('DEBUG Settings - availableModels:', availableModels)
+  console.log('DEBUG Settings - hasAvailableModels:', hasAvailableModels)
 
   const renderModelOptions = (selectedVal) => {
-    const hasModels = Object.values(availableModels).some((list) => list.length > 0)
-    const isSelectedVerified = Object.values(availableModels).some((list) => list.includes(selectedVal))
+    const hasModels = Object.values(availableModels).some((list) => list && list.length > 0)
+    const isSelectedVerified = Object.values(availableModels).some((list) => list && list.includes(selectedVal))
     
     return (
       <>
