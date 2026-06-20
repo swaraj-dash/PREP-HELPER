@@ -51,5 +51,10 @@ export const patchTag = (id, data) => api.patch(`/tags/${id}`, data)
 export const mergeTags = (data) => api.post('/tags/merge', data)
 export const deleteTag = (id, force = false) => api.delete(`/tags/${id}`, { params: { force } })
 
+// Vault Export/Import
+export const exportVault = (data) => api.post('/vault/export', data)
+export const previewVault = (filePath) => api.post('/vault/import/preview', { file_path: filePath })
+export const importVault = (data) => api.post('/vault/import', data)
+
 export default api
 
