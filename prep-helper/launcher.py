@@ -93,6 +93,8 @@ def main():
     # 3. Start uvicorn server in a subprocess
     env = os.environ.copy()
     env["PYTHONPATH"] = SCRIPT_DIR
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUNBUFFERED"] = "1"
 
     print(f"Starting backend server on port {args.port}...")
     cmd = [UVICORN_EXE, "backend.main:app", "--host", args.host, "--port", str(args.port)]

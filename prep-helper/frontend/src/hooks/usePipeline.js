@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import toast from 'react-hot-toast'
 
 export function usePipeline() {
   const [state, setState] = useState({
@@ -12,9 +13,12 @@ export function usePipeline() {
   })
 
   const socketRef = useRef(null)
+  const docNameRef = useRef('')
 
-  const connect = useCallback((docId) => {
+  const connect = useCallback((docId, docName = '') => {
     if (!docId) return
+
+    docNameRef.current = docName
 
     // Close any existing connection
     if (socketRef.current) {
@@ -57,6 +61,24 @@ export function usePipeline() {
             errorMessage: isErr ? (data.message || 'An error occurred during processing.') : '',
           }
         })
+
+        // Fire global toast notifications on completion or error
+        if (data.stage === 'done') {
+          const qCount = data.details?.questions_found || 0
+          const nCount = data.details?.notes_found || 0
+          const name = docNameRef.current || 'Document'
+          toast.success(
+            `✅ "${name}" processed!\n${qCount} Q&As, ${nCount} notes extracted.`,
+            { duration: 6000, id: `pipeline-done-${docId}` }
+          )
+        }
+        if (data.stage === 'error') {
+          const name = docNameRef.current || 'Document'
+          toast.error(
+            `❌ "${name}" failed: ${data.message || 'Unknown error'}`,
+            { duration: 8000, id: `pipeline-error-${docId}` }
+          )
+        }
 
         // Close socket if completed or errored
         if (data.stage === 'done' || data.stage === 'error') {

@@ -29,6 +29,53 @@ async def list_tags(
     return res.scalars().all()
 
 
+@router.get("/grouped")
+async def list_tags_grouped(db: AsyncSession = Depends(get_db)):
+    """Returns tags grouped by tag_type for domain/tech chapter-style navigation.
+    Only includes tags with usage_count > 0 (i.e., tags that have associated content).
+    """
+    if not is_vault_configured():
+        return {"groups": []}
+
+    stmt = select(Tag).where(Tag.usage_count > 0).order_by(Tag.usage_count.desc(), Tag.name.asc())
+    res = await db.execute(stmt)
+    all_tags = res.scalars().all()
+
+    # Group by tag_type with display labels
+    type_labels = {
+        "tech": "Technologies & Languages",
+        "concept": "Concepts & Topics",
+        "domain": "Domains & Fields",
+        "difficulty": "Difficulty Levels",
+        "content_type": "Content Types",
+        "custom": "Custom Tags",
+    }
+
+    groups = {}
+    for tag in all_tags:
+        tt = tag.tag_type or "custom"
+        if tt not in groups:
+            groups[tt] = {
+                "type": tt,
+                "label": type_labels.get(tt, tt.title()),
+                "tags": []
+            }
+        groups[tt]["tags"].append(TagOut.model_validate(tag))
+
+    # Sort groups by a predefined priority
+    priority = ["tech", "domain", "concept", "custom", "difficulty", "content_type"]
+    sorted_groups = []
+    for p in priority:
+        if p in groups:
+            sorted_groups.append(groups[p])
+    # Add any remaining types not in priority list
+    for tt, group in groups.items():
+        if tt not in priority:
+            sorted_groups.append(group)
+
+    return {"groups": sorted_groups}
+
+
 @router.post("", response_model=TagOut)
 async def create_tag(payload: TagCreate, db: AsyncSession = Depends(get_db)):
     """Creates a new user custom tag."""

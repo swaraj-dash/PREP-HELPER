@@ -19,15 +19,8 @@ async def reorder_notes_for_topic(tag_name: str, db_session, ai_client: AIClient
     result = await db_session.execute(stmt)
     notes = list(result.scalars().all())
 
-    # Skip reordering if there are fewer than 3 notes or if they are all from the same document
+    # Skip reordering if there are fewer than 3 notes
     if len(notes) < 3:
-        for n in notes:
-            n.topic_order = n.order_index
-        await db_session.commit()
-        return
-
-    doc_ids = {n.document_id for n in notes}
-    if len(doc_ids) <= 1:
         for n in notes:
             n.topic_order = n.order_index
         await db_session.commit()

@@ -28,3 +28,9 @@ Thumbs.db
 
 # Binary project documents
 PrepHelper_ProjectDocs.docx
+
+# Temp test vaults and PDFs
+temp_vault_test*/
+prep-helper/temp_vault_test*/
+*.pdf
+

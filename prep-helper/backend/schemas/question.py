@@ -7,6 +7,13 @@ from backend.schemas.tag import TagOut
 if TYPE_CHECKING:
     from backend.schemas.srs import SRSStateOut
 
+class QuestionSource(BaseModel):
+    question_id: str
+    document_id: str
+    document_name: str
+    answer_text: str
+    source_page: Optional[int] = None
+
 class QuestionOut(BaseModel):
     id: str
     document_id: str
@@ -20,10 +27,13 @@ class QuestionOut(BaseModel):
     updated_at: datetime
     tags: List[TagOut] = []
     srs_state: Optional[SRSStateOut] = None
+    combined_answer: Optional[str] = None
+    sources: Optional[List[QuestionSource]] = None
 
     model_config = {
         "from_attributes": True
     }
+
 
 
 class QuestionPatch(BaseModel):

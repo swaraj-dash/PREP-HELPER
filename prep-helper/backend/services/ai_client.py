@@ -83,10 +83,10 @@ class AIClient:
 
     async def complete(self, system: str, user: str, json_mode: bool = True) -> str:
         """Sends a prompt to the model and returns the response content.
-        Retries up to 3 times with exponential backoff on rate limits.
+        Retries up to 5 times with exponential backoff on rate limits.
         """
-        retries = 3
-        delay = 2.0
+        retries = 5
+        delay = 4.0
         backoff_factor = 2.0
 
         for attempt in range(retries):
@@ -94,8 +94,16 @@ class AIClient:
                 return await self._complete_call(system, user, json_mode)
             except Exception as e:
                 err_msg = str(e).lower()
-                # 429 represents rate limit; check for common phrases indicating rate limits
-                is_rate_limit = "429" in err_msg or "rate" in err_msg or "limit" in err_msg or "quota" in err_msg
+                # Check for standard rate-limiting patterns in error messages
+                is_rate_limit = (
+                    "429" in err_msg or 
+                    "rate" in err_msg or 
+                    "limit" in err_msg or 
+                    "quota" in err_msg or 
+                    "tpm" in err_msg or 
+                    "rpm" in err_msg or
+                    "rate_limit_exceeded" in err_msg
+                )
                 
                 if is_rate_limit and attempt < retries - 1:
                     print(f"[{self.provider}] Rate limited. Retrying in {delay}s... (Attempt {attempt + 1}/{retries})")

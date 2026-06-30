@@ -25,8 +25,13 @@ def get_engine():
     db_url = f"sqlite+aiosqlite:///{normalized_path}"
     
     if _engine is None or str(_engine.url) != db_url:
-        # Create new engine
-        _engine = create_async_engine(db_url, echo=False, future=True)
+        # Create new engine with a longer timeout to prevent database locks
+        _engine = create_async_engine(
+            db_url,
+            echo=False,
+            future=True,
+            connect_args={"timeout": 60.0}
+        )
     return _engine
 
 def get_sessionmaker():
@@ -54,17 +59,15 @@ async def init_db():
     """Initializes all tables in the SQLite database."""
     # Import models here to register them with Base.metadata and prevent circular imports
     from backend import models
-    from backend.utils.tag_vocab import seed_tags
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Open session to perform seeding
-    sessionmaker = get_sessionmaker()
-    async with sessionmaker() as session:
+        
+        # Dynamic migration: add combined_answer to questions if not exists
         try:
-            await seed_tags(session)
-        except Exception as e:
-            # Let it fail gracefully or log it
-            print(f"Error seeding tags vocabulary: {e}")
+            await conn.execute("ALTER TABLE questions ADD COLUMN combined_answer TEXT;")
+            print("[Database] Dynamic migration: added 'combined_answer' column to questions table.")
+        except Exception:
+            pass
+
 

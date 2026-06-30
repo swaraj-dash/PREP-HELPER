@@ -1,5 +1,6 @@
 import json
 import re
+import asyncio
 from sqlalchemy import select
 from backend.models.tag import Tag
 from backend.services.ai_client import AIClient
@@ -7,7 +8,7 @@ from backend.utils.tag_vocab import TAG_VOCABULARY
 from backend.services.pipeline.classifier import clean_json_response
 
 async def tag_chunks(chunks: list[dict], chunk_type: str, ai_client: AIClient, db_session) -> list[dict]:
-    """Assigns tags and difficulty levels to a list of question or note chunks in batches of 10.
+    """Assigns tags and difficulty levels to a list of question or note chunks in batches of 4.
     Persists newly identified tags in the database.
     
     Args:
@@ -22,19 +23,19 @@ async def tag_chunks(chunks: list[dict], chunk_type: str, ai_client: AIClient, d
     if not chunks:
         return []
 
-    # Select the first 80 tags from vocabulary to use as suggestion guidance in LLM system prompt
-    vocab_tags = [t["name"] for t in TAG_VOCABULARY[:80]]
+    # Select the first 25 tags from vocabulary to use as suggestion guidance in LLM system prompt (saves tokens)
+    vocab_tags = [t["name"] for t in TAG_VOCABULARY[:25]]
     vocab_str = ", ".join(vocab_tags)
 
     system_prompt = (
-        "You are a technical content tagger. Given content chunks, assign relevant tags and estimate their technical difficulty.\n"
-        f"Predefined Vocabulary (prioritize these where applicable, but you may create new ones if necessary):\n{vocab_str}\n\n"
+        "You are a technical content tagger. Given content chunks, assign relevant tags (such as programming languages, technologies, concepts, e.g. 'Java', 'Object-Oriented Programming') and estimate technical difficulty.\n"
+        f"Predefined Vocabulary (use these if they are directly relevant, but you should create new, specific tags like 'Java', 'Spring Boot', 'Variables', etc. if they describe the content better):\n{vocab_str}\n\n"
         "Return ONLY a JSON array containing one object per input chunk, in the exact same order:\n"
         '[{"id": <idx>, "tags": ["tag1", "tag2"], "difficulty": "beginner"|"intermediate"|"advanced"}, ...]\n'
         "Do not include markdown tags, no explanations, no formatting preamble."
     )
 
-    batch_size = 10
+    batch_size = 4
     tagged_chunks = []
 
     # Assign temporary ids to safely map async batch completions
@@ -42,6 +43,10 @@ async def tag_chunks(chunks: list[dict], chunk_type: str, ai_client: AIClient, d
         c["temp_id"] = idx
 
     for i in range(0, len(chunks), batch_size):
+        # Respect rate limits on free tiers
+        if i > 0:
+            await asyncio.sleep(2.0)
+
         batch = chunks[i : i + batch_size]
         payload = []
 
@@ -52,7 +57,7 @@ async def tag_chunks(chunks: list[dict], chunk_type: str, ai_client: AIClient, d
                 text_content = f"Heading: {c.get('heading')}\nContent: {c.get('content')}"
             payload.append({
                 "id": c["temp_id"],
-                "text": text_content[:1500]  # Cap text segment length to prevent exceeding token limits
+                "text": text_content[:800]  # Cap text segment length to prevent exceeding token limits
             })
 
         user_prompt = f"Tag these chunks:\n{json.dumps(payload, indent=2)}"
@@ -70,16 +75,43 @@ async def tag_chunks(chunks: list[dict], chunk_type: str, ai_client: AIClient, d
                 cleaned = f"[{cleaned}]"
 
             llm_results = json.loads(cleaned)
+            
+            # Robust check in case LLM wraps array in a dictionary (e.g. {"chunks": [...]})
+            if isinstance(llm_results, dict):
+                for key in ["chunks", "results", "data", "items", "array", "tagged_chunks"]:
+                    if key in llm_results and isinstance(llm_results[key], list):
+                        llm_results = llm_results[key]
+                        break
+                else:
+                    # If it's a single dictionary representing one chunk
+                    if "id" in llm_results or "tags" in llm_results:
+                        llm_results = [llm_results]
+
             results_map = {}
 
             if isinstance(llm_results, list):
+                # Try to map by matching ID if present
                 for r in llm_results:
                     c_id = r.get("id")
                     if c_id is not None:
-                        results_map[int(c_id)] = {
-                            "tags": [t.strip() for t in r.get("tags", []) if t.strip()],
-                            "difficulty": r.get("difficulty", "intermediate").lower()
-                        }
+                        try:
+                            results_map[int(c_id)] = {
+                                "tags": [t.strip() for t in r.get("tags", []) if t.strip()],
+                                "difficulty": r.get("difficulty", "intermediate").lower()
+                            }
+                        except (ValueError, TypeError):
+                            pass
+
+                # Positional mapping fallback if some temp_ids are missing and array lengths match
+                if len(results_map) < len(batch) and len(llm_results) == len(batch):
+                    for idx, c in enumerate(batch):
+                        temp_id = c["temp_id"]
+                        if temp_id not in results_map:
+                            r = llm_results[idx]
+                            results_map[temp_id] = {
+                                "tags": [t.strip() for t in r.get("tags", []) if t.strip()],
+                                "difficulty": r.get("difficulty", "intermediate").lower()
+                            }
 
             for c in batch:
                 r = results_map.get(c["temp_id"], {"tags": [], "difficulty": "intermediate"})
@@ -130,15 +162,19 @@ async def tag_chunks(chunks: list[dict], chunk_type: str, ai_client: AIClient, d
                 db_session.add(new_tag)
                 db_tags[name_lower] = new_tag
 
-        await db_session.flush()
+        await db_session.commit()
 
-        # Link Tag entities to chunks
+        # Link Tag entities to chunks, deduplicating to prevent unique constraint violations on item_tags
         for c in tagged_chunks:
             resolved = []
+            seen_names = set()
             for t_name in c["tags"]:
-                tag_obj = db_tags.get(t_name.lower())
-                if tag_obj:
-                    resolved.append(tag_obj)
+                name_lower = t_name.lower()
+                if name_lower not in seen_names:
+                    seen_names.add(name_lower)
+                    tag_obj = db_tags.get(name_lower)
+                    if tag_obj:
+                        resolved.append(tag_obj)
             c["resolved_tags"] = resolved
     else:
         for c in tagged_chunks:

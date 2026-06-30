@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { FileText, Sparkles, RefreshCw, Eye } from 'lucide-react'
 import TagChip from './TagChip'
+import MarkdownRenderer from './MarkdownRenderer'
 
 export default function FlashCard({ question, onRate, isSubmitting = false }) {
   const [isFlipped, setIsFlipped] = useState(false)
@@ -131,9 +132,9 @@ export default function FlashCard({ question, onRate, isSubmitting = false }) {
 
           {/* Answer Text */}
           <div className="flex-1 overflow-y-auto my-4 py-2 relative z-10 scrollbar-thin select-text" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
-              {question.answer_text}
-            </p>
+            <div className="text-sm text-slate-300 leading-relaxed">
+              <MarkdownRenderer text={question.combined_answer || question.answer_text} />
+            </div>
           </div>
 
           {/* Rating Selection Action Row */}

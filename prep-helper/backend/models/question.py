@@ -14,6 +14,7 @@ class Question(Base):
     source_page = Column(Integer, nullable=True)
     order_in_doc = Column(Integer, nullable=True)
     bookmarked = Column(Boolean, default=False)
+    combined_answer = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

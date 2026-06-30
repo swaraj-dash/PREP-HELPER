@@ -3,6 +3,7 @@ import { FileText, Plus, Edit2, Trash2, Check, X, MessageSquare } from 'lucide-r
 import { getTagClasses } from '../utils/tagColors'
 import { getAnnotations, createAnnotation, updateAnnotation, deleteAnnotation, patchNote } from '../api/client'
 import toast from 'react-hot-toast'
+import MarkdownRenderer from './MarkdownRenderer'
 
 export default function NoteBlock({ note, onUpdate, showSource = true }) {
   const [isEditing, setIsEditing] = useState(false)
@@ -253,8 +254,8 @@ export default function NoteBlock({ note, onUpdate, showSource = true }) {
           </div>
 
           {/* Note content */}
-          <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap select-text">
-            {note.content}
+          <div className="text-slate-300 text-sm leading-relaxed select-text">
+            <MarkdownRenderer text={note.content} />
           </div>
 
           {/* Tags & Source Metadata */}

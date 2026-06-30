@@ -3,10 +3,21 @@ import { Star, Edit2, Trash2, Check, X, FileText, ChevronDown, ChevronUp, Plus, 
 import { getTagClasses } from '../utils/tagColors'
 import api, { suggestQuestionMetadata } from '../api/client'
 import toast from 'react-hot-toast'
+import MarkdownRenderer from './MarkdownRenderer'
 
 export default function QuestionCard({ question, onUpdate, onDelete }) {
   const [showAnswer, setShowAnswer] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [selectedSourceId, setSelectedSourceId] = useState('combined')
+
+  // Determine which answer text to display
+  const getActiveAnswer = () => {
+    if (selectedSourceId === 'combined' && question.combined_answer) {
+      return question.combined_answer
+    }
+    const matched = question.sources?.find(s => s.question_id === selectedSourceId)
+    return matched ? matched.answer_text : question.answer_text
+  }
   
   // Inline edit states
   const [questionText, setQuestionText] = useState(question.question_text)
@@ -336,9 +347,43 @@ export default function QuestionCard({ question, onUpdate, onDelete }) {
             </button>
 
             {showAnswer && (
-              <p className="text-xs text-slate-400 leading-relaxed bg-slate-950/60 border border-slate-850 p-4 rounded-2xl whitespace-pre-wrap select-text animate-slideDown">
-                {question.answer_text}
-              </p>
+              <div className="space-y-3">
+                {question.sources && question.sources.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pb-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center mr-1">Sources:</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSourceId('combined')}
+                      className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all border ${
+                        selectedSourceId === 'combined'
+                          ? 'bg-indigo-600/25 border-indigo-500 text-indigo-400'
+                          : 'bg-slate-950/40 border-slate-850 text-slate-450 hover:text-slate-350 hover:border-slate-800'
+                      }`}
+                    >
+                      Combined
+                    </button>
+                    {question.sources.map((src) => (
+                      <button
+                        key={src.question_id}
+                        type="button"
+                        onClick={() => setSelectedSourceId(src.question_id)}
+                        className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all border truncate max-w-[150px] ${
+                          selectedSourceId === src.question_id
+                            ? 'bg-indigo-600/25 border-indigo-500 text-indigo-400'
+                            : 'bg-slate-950/40 border-slate-850 text-slate-450 hover:text-slate-350 hover:border-slate-800'
+                        }`}
+                        title={`${src.document_name} (p. ${src.source_page || '?'})`}
+                      >
+                        {src.document_name.replace(/\.pdf$/i, '')}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="bg-slate-950/60 border border-slate-850/80 p-4 rounded-2xl select-text animate-slideDown">
+                  <MarkdownRenderer text={getActiveAnswer()} />
+                </div>
+              </div>
             )}
           </div>
 
@@ -361,8 +406,14 @@ export default function QuestionCard({ question, onUpdate, onDelete }) {
             {/* File Footnote */}
             <div className="flex items-center space-x-1.5 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
               <FileText className="h-3.5 w-3.5 text-slate-600" />
-              <span className="truncate max-w-[200px]" title="Attribution">
-                From database metadata
+              <span className="truncate max-w-[250px]" title="Attribution">
+                {selectedSourceId === 'combined'
+                  ? `${question.sources && question.sources.length > 1 ? `${question.sources.length} PDFs Merged` : 'From database metadata'}`
+                  : (() => {
+                      const matched = question.sources?.find(s => s.question_id === selectedSourceId)
+                      return matched ? `${matched.document_name} (Page ${matched.source_page || '?'})` : 'From database metadata'
+                    })()
+                }
               </span>
             </div>
           </div>

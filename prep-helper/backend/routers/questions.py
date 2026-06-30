@@ -9,7 +9,7 @@ from backend.models.question import Question
 from backend.models.tag import Tag, ItemTag
 from backend.models.srs import SRSCard
 from backend.models.document import Document
-from backend.schemas.question import QuestionOut, QuestionPatch, QuestionSuggestRequest
+from backend.schemas.question import QuestionOut, QuestionPatch, QuestionSuggestRequest, QuestionSource
 from backend.schemas.tag import TagOut
 from backend.schemas.srs import SRSStateOut
 from backend.services.ai_client import get_ai_client
@@ -57,6 +57,133 @@ async def suggest_metadata(payload: QuestionSuggestRequest, db: AsyncSession = D
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"AI metadata suggestion failed: {str(e)}")
 
+import re
+
+def normalize_text(text: str) -> str:
+    # remove punctuation, spacing, and lowercase
+    return re.sub(r'\W+', '', text.lower())
+
+async def synthesize_combined_answer(questions: list[Question]) -> str:
+    # Build prompt with all raw answers
+    answers_str = ""
+    for idx, q in enumerate(questions):
+        answers_str += f"Answer {idx + 1}:\n{q.answer_text}\n\n"
+    
+    system_prompt = (
+        "You are an expert technical tutor. You are given multiple answers to the same question from different study notes.\n"
+        "Your task is to diagnose all the answers and formulate a single, unified, high-quality, comprehensive, and clear combined answer.\n"
+        "The combined answer should be highly formatted (use markdown bullet points, bold text, or code snippets if appropriate), clear, professional, and easy to read.\n"
+        "Do not mention 'Answer 1', 'Answer 2', or any meta-talk like 'Here is the combined answer...'. Just output the synthesized answer directly."
+    )
+    user_prompt = f"Question: {questions[0].question_text}\n\nHere are the raw answers to synthesize:\n{answers_str}"
+    
+    try:
+        from backend.services.ai_client import get_ai_client
+        ai_client = get_ai_client("reasoning")
+        response = await ai_client.complete(system=system_prompt, user=user_prompt, json_mode=False)
+        return response.strip()
+    except Exception as e:
+        print(f"[Synthesizer] Error synthesizing combined answer: {e}")
+        # Return the longest raw answer as fallback
+        return max([q.answer_text for q in questions], key=len)
+
+async def group_question_sources(rep: Question, db: AsyncSession, tag_map=None, srs_map=None):
+    # Find all questions with the same normalized text
+    stmt_all = select(Question)
+    res_all = await db.execute(stmt_all)
+    all_qs = res_all.scalars().all()
+    q_norm = normalize_text(rep.question_text)
+    group_qs = [item for item in all_qs if normalize_text(item.question_text) == q_norm]
+    
+    # Load document names
+    doc_ids = list(set(m.document_id for m in group_qs))
+    doc_map = {}
+    if doc_ids:
+        doc_stmt = select(Document.id, Document.original_name).where(Document.id.in_(doc_ids))
+        doc_res = await db.execute(doc_stmt)
+        doc_map = {d_id: orig_name for d_id, orig_name in doc_res.all()}
+        
+    # Load tags if not provided
+    q_ids = [m.id for m in group_qs]
+    if tag_map is None:
+        tag_map = {}
+        tags_stmt = (
+            select(ItemTag.item_id, Tag)
+            .join(Tag, ItemTag.tag_id == Tag.id)
+            .where(ItemTag.item_type == "question", ItemTag.item_id.in_(q_ids))
+        )
+        tags_res = await db.execute(tags_stmt)
+        for q_id, tag in tags_res.all():
+            if q_id not in tag_map:
+                tag_map[q_id] = []
+            tag_map[q_id].append(TagOut.model_validate(tag))
+            
+    # Load SRS mapping if not provided
+    if srs_map is None:
+        srs_map = {}
+        srs_stmt = select(SRSCard).where(SRSCard.question_id.in_(q_ids))
+        srs_res = await db.execute(srs_stmt)
+        for card in srs_res.scalars().all():
+            srs_map[card.question_id] = SRSStateOut(
+                ease_factor=card.ease_factor,
+                interval_days=card.interval_days,
+                due_date=card.due_date,
+                repetitions=card.repetitions
+            )
+            
+    merged_tags = []
+    seen_tag_ids = set()
+    for member in group_qs:
+        for tag in tag_map.get(member.id, []):
+            if tag.id not in seen_tag_ids:
+                seen_tag_ids.add(tag.id)
+                merged_tags.append(tag)
+                
+    srs_state = None
+    for member in group_qs:
+        if member.id in srs_map:
+            srs_state = srs_map[member.id]
+            break
+            
+    combined = None
+    if len(group_qs) > 1:
+        # Check if any member has combined_answer set in the database
+        for member in group_qs:
+            if member.combined_answer:
+                combined = member.combined_answer
+                break
+        if not combined:
+            combined = await synthesize_combined_answer(group_qs)
+            for member in group_qs:
+                member.combined_answer = combined
+            await db.commit()
+            
+    return QuestionOut(
+        id=rep.id,
+        document_id=rep.document_id,
+        question_text=rep.question_text,
+        answer_text=rep.answer_text,
+        difficulty=rep.difficulty,
+        source_page=rep.source_page,
+        order_in_doc=rep.order_in_doc,
+        bookmarked=any(m.bookmarked for m in group_qs),
+        created_at=rep.created_at,
+        updated_at=rep.updated_at,
+        tags=merged_tags,
+        srs_state=srs_state,
+        combined_answer=combined,
+        sources=[
+            QuestionSource(
+                question_id=m.id,
+                document_id=m.document_id,
+                document_name=doc_map.get(m.document_id, "Unknown PDF"),
+                answer_text=m.answer_text,
+                source_page=m.source_page
+            )
+            for m in group_qs
+        ]
+    )
+
 @router.get("", response_model=dict)
 async def list_questions(
     tags: list[str] = Query(None, alias="tags"),
@@ -68,7 +195,7 @@ async def list_questions(
     offset: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
-    """Lists questions with multi-tag AND intersections, semantic searching, and standard attribute filters."""
+    """Lists questions with multi-tag AND intersections, semantic searching, similarity grouping, and standard filters."""
     if not is_vault_configured():
         return {"data": [], "meta": {"total": 0, "limit": limit, "offset": offset}}
 
@@ -80,20 +207,17 @@ async def list_questions(
     if search and search.strip():
         try:
             ai_client = get_ai_client("extraction")
-            # Generate search query embedding vector
             query_emb = await ai_client.embed([search])
             if query_emb:
                 collection = get_collection("questions")
-                # Query Chroma
                 chroma_res = collection.query(
                     query_embeddings=query_emb,
-                    n_results=50,  # Grab top 50 matches
+                    n_results=50,
                     where={"doc_id": doc_id} if doc_id else None
                 )
                 if chroma_res and chroma_res["ids"] and chroma_res["ids"][0]:
                     chroma_ids = chroma_res["ids"][0]
                 else:
-                    # Semantic search yielded zero results
                     return {"data": [], "meta": {"total": 0, "limit": limit, "offset": offset}}
         except Exception as e:
             print(f"[Questions API] Semantic search failed/errored: {e}. Falling back to standard filters.")
@@ -103,7 +227,6 @@ async def list_questions(
 
     # 3. Intersect tag AND logic
     if tags:
-        # Subquery finding all item_ids containing all tags
         subq = (
             select(ItemTag.item_id)
             .join(Tag, ItemTag.tag_id == Tag.id)
@@ -121,37 +244,51 @@ async def list_questions(
     if doc_id:
         stmt = stmt.where(Question.document_id == doc_id)
 
-    # 5. Count total matches (for pagination meta)
-    count_stmt = select(func.count()).select_from(stmt.subquery())
-    count_res = await db.execute(count_stmt)
-    total_count = count_res.scalar() or 0
-
-    # 6. Apply offset and limit
-    # If using semantic search, we want to maintain the relevance order returned by ChromaDB
-    # So if chroma_ids is active, order by the index list sequence in SQLite
+    # Order query
     if chroma_ids:
-        # A simple CASE statement to order by Chroma results sequence
         clauses = [func.case(*[(Question.id == val, idx) for idx, val in enumerate(chroma_ids)])]
         stmt = stmt.order_by(*clauses)
     else:
         stmt = stmt.order_by(Question.created_at.desc())
 
-    stmt = stmt.offset(offset).limit(limit)
+    # Execute statement to fetch all filtered questions to group in Python
     res = await db.execute(stmt)
-    questions = res.scalars().all()
+    all_filtered = res.scalars().all()
 
-    if not questions:
-        return {"data": [], "meta": {"total": total_count, "limit": limit, "offset": offset}}
+    if not all_filtered:
+        return {"data": [], "meta": {"total": 0, "limit": limit, "offset": offset}}
 
-    # 7. Batch fetch tags and SRS Cards to build output objects
-    q_ids = [q.id for q in questions]
+    # Group questions by similarity
+    groups = {}
+    ordered_groups = []
+    for q in all_filtered:
+        norm = normalize_text(q.question_text)
+        if norm not in groups:
+            groups[norm] = []
+            ordered_groups.append(norm)
+        groups[norm].append(q)
 
-    # Load tags
+    total_grouped_count = len(ordered_groups)
+
+    # Slice groups based on pagination limit/offset
+    paginated_norms = ordered_groups[offset : offset + limit]
+
+    # Gather all questions that we will actually display
+    display_questions = []
+    for norm in paginated_norms:
+        display_questions.extend(groups[norm])
+
+    if not display_questions:
+        return {"data": [], "meta": {"total": total_grouped_count, "limit": limit, "offset": offset}}
+
+    display_q_ids = [q.id for q in display_questions]
+
+    # Batch fetch tags for display questions
     tag_map = {}
     tags_stmt = (
         select(ItemTag.item_id, Tag)
         .join(Tag, ItemTag.tag_id == Tag.id)
-        .where(ItemTag.item_type == "question", ItemTag.item_id.in_(q_ids))
+        .where(ItemTag.item_type == "question", ItemTag.item_id.in_(display_q_ids))
     )
     tags_res = await db.execute(tags_stmt)
     for q_id, tag in tags_res.all():
@@ -159,9 +296,9 @@ async def list_questions(
             tag_map[q_id] = []
         tag_map[q_id].append(TagOut.model_validate(tag))
 
-    # Load SRS Cards
+    # Batch fetch SRS states
     srs_map = {}
-    srs_stmt = select(SRSCard).where(SRSCard.question_id.in_(q_ids))
+    srs_stmt = select(SRSCard).where(SRSCard.question_id.in_(display_q_ids))
     srs_res = await db.execute(srs_stmt)
     for card in srs_res.scalars().all():
         srs_map[card.question_id] = SRSStateOut(
@@ -171,39 +308,92 @@ async def list_questions(
             repetitions=card.repetitions
         )
 
-    # 8. Construct response payloads
+    # Batch load filenames for these documents
+    doc_ids = list(set(q.document_id for q in display_questions))
+    doc_map = {}
+    if doc_ids:
+        doc_stmt = select(Document.id, Document.original_name).where(Document.id.in_(doc_ids))
+        doc_res = await db.execute(doc_stmt)
+        doc_map = {d_id: orig_name for d_id, orig_name in doc_res.all()}
+
+    # Construct response payloads
     data_out = []
-    for q in questions:
+    for norm in paginated_norms:
+        group_members = groups[norm]
+        rep = group_members[0]
+
+        # Merge tags of all members in group
+        merged_tags = []
+        seen_tag_ids = set()
+        for member in group_members:
+            for tag in tag_map.get(member.id, []):
+                if tag.id not in seen_tag_ids:
+                    seen_tag_ids.add(tag.id)
+                    merged_tags.append(tag)
+
+        # Resolve SRS state
+        srs_state = None
+        for member in group_members:
+            if member.id in srs_map:
+                srs_state = srs_map[member.id]
+                break
+
+        # Resolve Combined Answer
+        combined = None
+        if len(group_members) > 1:
+            for member in group_members:
+                if member.combined_answer:
+                    combined = member.combined_answer
+                    break
+            if not combined:
+                combined = await synthesize_combined_answer(group_members)
+                for member in group_members:
+                    member.combined_answer = combined
+                await db.commit()
+
+        # Build sources list
+        sources = [
+            QuestionSource(
+                question_id=m.id,
+                document_id=m.document_id,
+                document_name=doc_map.get(m.document_id, "Unknown PDF"),
+                answer_text=m.answer_text,
+                source_page=m.source_page
+            )
+            for m in group_members
+        ]
+
         data_out.append(
             QuestionOut(
-                id=q.id,
-                document_id=q.document_id,
-                question_text=q.question_text,
-                answer_text=q.answer_text,
-                difficulty=q.difficulty,
-                source_page=q.source_page,
-                order_in_doc=q.order_in_doc,
-                bookmarked=q.bookmarked,
-                created_at=q.created_at,
-                updated_at=q.updated_at,
-                tags=tag_map.get(q.id, []),
-                srs_state=srs_map.get(q.id)
+                id=rep.id,
+                document_id=rep.document_id,
+                question_text=rep.question_text,
+                answer_text=rep.answer_text,
+                difficulty=rep.difficulty,
+                source_page=rep.source_page,
+                order_in_doc=rep.order_in_doc,
+                bookmarked=any(m.bookmarked for m in group_members),
+                created_at=rep.created_at,
+                updated_at=rep.updated_at,
+                tags=merged_tags,
+                srs_state=srs_state,
+                combined_answer=combined,
+                sources=sources
             )
         )
 
     return {
         "data": data_out,
         "meta": {
-            "total": total_count,
+            "total": total_grouped_count,
             "limit": limit,
             "offset": offset
         }
     }
 
-
 @router.get("/{id}", response_model=QuestionOut)
 async def get_question(id: str, db: AsyncSession = Depends(get_db)):
-    """Retrieves a single question by its ID."""
+    """Retrieves a single question by its ID, grouped with duplicates if present."""
     if not is_vault_configured():
         raise HTTPException(status_code=400, detail="Vault not configured.")
 
@@ -213,42 +403,7 @@ async def get_question(id: str, db: AsyncSession = Depends(get_db)):
     if not q:
         raise HTTPException(status_code=404, detail="Question not found.")
 
-    # Load tags
-    tags_stmt = (
-        select(Tag)
-        .join(ItemTag, Tag.id == ItemTag.tag_id)
-        .where(ItemTag.item_type == "question", ItemTag.item_id == id)
-    )
-    tags_res = await db.execute(tags_stmt)
-    tags_out = [TagOut.model_validate(t) for t in tags_res.scalars().all()]
-
-    # Load SRS
-    srs_stmt = select(SRSCard).where(SRSCard.question_id == id)
-    srs_res = await db.execute(srs_stmt)
-    card = srs_res.scalar_one_or_none()
-    srs_state = None
-    if card:
-        srs_state = SRSStateOut(
-            ease_factor=card.ease_factor,
-            interval_days=card.interval_days,
-            due_date=card.due_date,
-            repetitions=card.repetitions
-        )
-
-    return QuestionOut(
-        id=q.id,
-        document_id=q.document_id,
-        question_text=q.question_text,
-        answer_text=q.answer_text,
-        difficulty=q.difficulty,
-        source_page=q.source_page,
-        order_in_doc=q.order_in_doc,
-        bookmarked=q.bookmarked,
-        created_at=q.created_at,
-        updated_at=q.updated_at,
-        tags=tags_out,
-        srs_state=srs_state
-    )
+    return await group_question_sources(q, db)
 
 
 @router.patch("/{id}", response_model=QuestionOut)

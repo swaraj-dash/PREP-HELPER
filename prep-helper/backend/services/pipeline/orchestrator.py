@@ -1,6 +1,8 @@
 import os
+import re
 import json
 import traceback
+import asyncio
 from datetime import datetime
 from sqlalchemy import select
 from backend.database import get_sessionmaker
@@ -10,13 +12,70 @@ from backend.models.note import Note
 from backend.models.tag import Tag, ItemTag
 from backend.models.srs import SRSCard
 from backend.services.ai_client import get_ai_client
-from backend.services.pipeline.extractor import extract_to_markdown
+from backend.services.pipeline.extractor import extract_to_markdown_async
 from backend.services.pipeline.classifier import classify_document
 from backend.services.pipeline.chunker import chunk_document
 from backend.services.pipeline.tagger import tag_chunks
 from backend.services.pipeline.embedder import embed_questions, embed_notes
 from backend.services.pipeline.reorder import reorder_notes_for_topic
 from backend.routers.ws import manager
+
+
+def _needs_formatting(text: str) -> bool:
+    """Checks if text already contains markdown formatting indicators."""
+    md_indicators = ['```', '**', '##', '- ', '* ', '1. ', '> ']
+    count = sum(1 for ind in md_indicators if ind in text)
+    return count < 2 and len(text) > 100
+
+
+async def format_answers_batch(chunks: list[dict], ai_client) -> list[dict]:
+    """Formats Q&A answer texts into clean markdown if they lack formatting.
+    Processes in batches to avoid excessive API calls.
+    """
+    needs_fmt = [(i, c) for i, c in enumerate(chunks) if _needs_formatting(c.get("a", ""))]
+    
+    if not needs_fmt:
+        print(f"[Orchestrator] All {len(chunks)} answers already formatted. Skipping formatting step.")
+        return chunks
+    
+    print(f"[Orchestrator] Formatting {len(needs_fmt)}/{len(chunks)} answers that lack markdown...")
+    
+    batch_size = 5
+    for batch_start in range(0, len(needs_fmt), batch_size):
+        batch = needs_fmt[batch_start:batch_start + batch_size]
+        
+        for idx, chunk in batch:
+            answer = chunk["a"]
+            question = chunk["q"]
+            
+            try:
+                await asyncio.sleep(2.0)
+                formatted = await ai_client.complete(
+                    system=(
+                        "You are a technical content formatter. Reformat the given answer into clean, "
+                        "well-structured Markdown. Use:\n"
+                        "- **Bold** for key terms and important concepts\n"
+                        "- `inline code` for technical terms, function names, and short code\n"
+                        "- ```language\\ncode\\n``` for code blocks (specify language)\n"
+                        "- Bullet points (- ) for lists\n"
+                        "- Numbered lists (1. ) for sequential steps\n"
+                        "- ### Subheadings where appropriate for long answers\n\n"
+                        "RULES:\n"
+                        "- Do NOT change the meaning or content of the answer\n"
+                        "- Do NOT add new information\n"
+                        "- Do NOT wrap the output in a code block\n"
+                        "- Return ONLY the reformatted answer text, nothing else"
+                    ),
+                    user=f"Question: {question}\n\nAnswer to format:\n{answer}",
+                    json_mode=False
+                )
+                if formatted and len(formatted.strip()) > 20:
+                    chunks[idx]["a"] = formatted.strip()
+            except Exception as e:
+                print(f"[Orchestrator] Answer formatting failed for Q#{idx}: {e}")
+                # Keep original answer on failure
+    
+    return chunks
 
 async def run_pipeline(doc_id: str, file_path: str, original_name: str):
     """Executes the asynchronous document ingestion pipeline.
@@ -59,19 +118,7 @@ async def run_pipeline(doc_id: str, file_path: str, original_name: str):
                 "details": {}
             })
 
-            cleaned_text, page_count = extract_to_markdown(file_path)
-            
-            # Check if digital text layer is empty or extremely short (e.g. scanned PDF/image notes)
-            if len(cleaned_text.strip()) < 200:
-                print(f"[Orchestrator] Digital text extraction retrieved only {len(cleaned_text.strip())} characters. Scanned PDF or image notes detected. Triggering AI Vision OCR...")
-                await manager.send_event(doc_id, {
-                    "stage": "extracting",
-                    "progress": 15,
-                    "message": "Scanned document or image notes detected. Running AI Vision OCR on pages...",
-                    "details": {}
-                })
-                from backend.services.pipeline.extractor import extract_via_ai_vision
-                cleaned_text = await extract_via_ai_vision(file_path)
+            cleaned_text, page_count = await extract_to_markdown_async(file_path, ai_client)
 
             doc.page_count = page_count
             await db.commit()
@@ -126,6 +173,21 @@ async def run_pipeline(doc_id: str, file_path: str, original_name: str):
             # Fetch LLM tagged arrays
             qa_tagged = await tag_chunks(qa_chunks, "qa", ai_client, db)
             note_tagged = await tag_chunks(note_chunks, "note", ai_client, db)
+
+            # --- STAGE 4.5: FORMAT ANSWERS ---
+            if qa_tagged:
+                await manager.send_event(doc_id, {
+                    "stage": "tagging",
+                    "progress": 65,
+                    "message": f"Formatting {len(qa_tagged)} answers into clean markdown...",
+                    "details": {
+                        "chunks_processed": len(qa_chunks),
+                        "chunks_total": len(qa_chunks) + len(note_chunks),
+                        "questions_found": len(qa_chunks),
+                        "notes_found": len(note_chunks)
+                    }
+                })
+                qa_tagged = await format_answers_batch(qa_tagged, ai_client)
 
             # Insert Questions & SRS Cards
             q_mappings = []
